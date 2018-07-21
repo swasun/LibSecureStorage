@@ -6,8 +6,8 @@
 #include <stddef.h>
 
 typedef struct {
-	int data_type;
-	ueum_byte_stream *data;
+    int data_type;
+    ueum_byte_stream *data;
 } sstorage_entry;
 
 sstorage_entry *sstorage_entry_create(int data_type);

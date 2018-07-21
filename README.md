@@ -39,7 +39,7 @@ sstorage_close(storage);
 sstorage *storage = sstorage_open_read("example.sst", <crypto_metadata>);
 
 if (!sstorage_has_next(storage)) {
-	<error_handling>
+    <error_handling>
 }
 
 entry = sstorage_next(storage);
@@ -54,7 +54,7 @@ sstorage_close(storage);
 * [LibUnknownEchoCryptoModule](https://github.com/swasun/LibUnknownEchoCryptoModule) Utils module of [LibUnknownEcho](https://github.com/swasun/LibUnknownEcho). Last version.
 * [Libssl](https://github.com/openssl/openssl) Provides the client and server-side implementations for SSLv3 and TLS. Version 1.1
 * [Libcrypto](https://github.com/openssl/openssl) Provides general cryptographic and X.509 support needed by SSL/TLS but
-	not logically part of it. Version 1.1.
+    not logically part of it. Version 1.1.
 * [Zlib](https://github.com/madler/zlib) A massively spiffy yet delicately unobtrusive compression library. Version 1.2.11.
 
 ## Cross-plateform

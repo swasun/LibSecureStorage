@@ -6,15 +6,15 @@
 #include <stdio.h>
 
 typedef enum {
-	SSTORAGE_READ,
-	SSTORAGE_WRITE
+    SSTORAGE_READ,
+    SSTORAGE_WRITE
 } sstorage_mode;
 
 typedef struct {
-	const char *file_name;
-	uecm_crypto_metadata *crypto_metadata;
-	FILE *fd;
-	sstorage_mode mode;
+    const char *file_name;
+    uecm_crypto_metadata *crypto_metadata;
+    FILE *fd;
+    sstorage_mode mode;
 } sstorage;
 
 sstorage *sstorage_open_read(const char *file_name, uecm_crypto_metadata *crypto_metadata);
