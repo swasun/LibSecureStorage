@@ -1,6 +1,6 @@
 ## Description
 
-C99 library to store data or multiple files in an encrypted single-file storage.
+C library to store data or multiple files in an encrypted single-file storage.
 
 ## API
 
