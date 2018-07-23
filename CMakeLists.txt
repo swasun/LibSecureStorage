@@ -1,35 +1,69 @@
-## @brief LibSecureStorage
-## @author Charly Lamothe
+ ##########################################################################################
+ # Copyright (C) 2018 by Charly Lamothe                                                   #
+ #                                                                                        #
+ # This file is part of LibSecureStorage.                                                 #
+ #                                                                                        #
+ #   LibSecureStorage is free software: you can redistribute it and/or modify             #
+ #   it under the terms of the GNU General Public License as published by                 #
+ #   the Free Software Foundation, either version 3 of the License, or                    #
+ #   (at your option) any later version.                                                  #
+ #                                                                                        #
+ #   LibSecureStorage is distributed in the hope that it will be useful,                  #
+ #   but WITHOUT ANY WARRANTY; without even the implied warranty of                       #
+ #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                        #
+ #   GNU General Public License for more details.                                         #
+ #                                                                                        #
+ #   You should have received a copy of the GNU General Public License                    #
+ #   along with LibSecureStorage.  If not, see <http://www.gnu.org/licenses/>.            #
+ ##########################################################################################
 
+ 
 # --- PROJECT ---
 
 PROJECT(securestorage C)
 cmake_minimum_required(VERSION 3.8)
 
-
 # --- GLOBAL OPTIONS ---
 
 set(CMAKE_VERBOSE_MAKEFILE on)
+SET(ROOT_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "Default root path of the current build directory")
 
-# Set as TRUE to link with openssl dependencies in lib folder. Set to FALSE otherwise.
-set(OPENSSL_LOCAL_LINK TRUE)
+# --- DEPENDENCIES OPTIONS ---
+
+SET(LIBEI_SYSTEM TRUE CACHE BOOL "Default LIBEI installation type")
+set(LIBEI_INSTALL ${ROOT_BUILD_DIR}/libei/install CACHE STRING "Default LIBEI install path")
+
+SET(LIBUEUM_SYSTEM TRUE CACHE BOOL "Default LIBUEUM installation type")
+set(LIBUEUM_INSTALL ${ROOT_BUILD_DIR}/libueum/install CACHE STRING "Default LIBUEUM install path")
+
+SET(LIBUECM_SYSTEM TRUE CACHE BOOL "Default LIBUECM installation type")
+set(LIBUECM_INSTALL ${ROOT_BUILD_DIR}/libuecm/install CACHE STRING "Default LIBUECM install path")
+
+SET(OPENSSL_SYSTEM TRUE CACHE BOOL "Default  OPENSSL installation type")
+
+SET(ZLIB_SYSTEM TRUE CACHE BOOL "Default ZLIB installation type")
 
 # --- PATH ---
 
 set(${CMAKE_CURRENT_SOURCE_DIR} ..)
 set(SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(TESTS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 set(EXAMPLES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/examples")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(LIBRARY_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin/release")
     set(EXAMPLES_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin/release/examples")
+    set(TESTS_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin/release/tests")
 elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(LIBRARY_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin/debug")
     set(EXAMPLES_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin/debug/examples")
+    set(TESTS_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin/debug/tests")
 endif ()
 
 
 # --- COMPILE OPTIONS ---
+
+set(CMAKE_C_FLAGS "-fPIC")
 
 # Compile options for Microsoft Visual Studio
 if (MSVC)
@@ -43,7 +77,7 @@ if (MSVC)
     endif ()
     add_compile_options("/W4") 
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON) # This variable is used to initialize the property on each target as it is created
-    set(CMAKE_C_FLAGS "${CMAKE_ENABLE_C99}") # Compile with C99 rules
+    set(CMAKE_C_FLAGS "${CMAKE_ENABLE_C11}") # Compile with C11 rules
 
     # Use secure functions by defaualt and suppress warnings about
     # deprecated" functions
@@ -72,7 +106,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") # If compiler is Clang
 else ()
     # Unix plateform
     if (UNIX)
-        add_compile_options("-std=gnu99" "-pthread" "-ldl")
+        add_compile_options("-std=gnu11" "-pthread" "-ldl")
         if (CMAKE_BUILD_TYPE STREQUAL "Release") # Release build mode
             if (CMAKE_COMPILER_IS_GNUCC) # GNU compiler
                 add_compile_options("-O2") # O2 optimization
@@ -88,7 +122,10 @@ else ()
                 ### Disable lazy binding
                 ## -Wl,-z,relro
                 ### Read-only segments after relocation
-                add_compile_options("-fstack-protector-strong" "-D_FORTIFY_SOURCE=2" "-Wl,-z,now" "-Wl,-z,relro")
+                add_compile_options("-D_FORTIFY_SOURCE=2" "-Wl,-z,now" "-Wl,-z,relro")
+                if (CMAKE_COMPILER_IS_GNUCC VERSION_GREATER 4.9)
+                    add_compile_options("-fstack-protector-strong")
+                endif ()
             endif ()
         else () # Debug mode
             add_compile_options("-g") # Add debug symbols
@@ -102,7 +139,7 @@ else ()
     ### Reject potentially unsafe format string arguments
     ## -Werror=implicit-function-declaration
     ### Reject missing function prototypes
-        #add_compile_options("-Wall" "-Wextra" "-Werror" "-pedantic" "-Werror=format-security" "-Werror=implicit-function-declaration")
+    #add_compile_options("-Wall" "-Wextra" "-Werror" "-pedantic" "-Werror=format-security" "-Werror=implicit-function-declaration")
     add_compile_options("-Wall" "-Wextra" "-pedantic" "-Werror=format-security" "-Werror=implicit-function-declaration")
 endif ()
 
@@ -113,7 +150,7 @@ if (WIN32)
         string(REPLACE "." "" ver ${ver})
         string(REGEX REPLACE "([0-9])" "0\\1" ver ${ver})
         set(${version} "0x${ver}")
-    endif()
+    endif ()
     endmacro()
     get_WIN32_WINNT(ver)
     add_definitions(-D_WIN32_WINNT=${ver})
@@ -129,67 +166,72 @@ endif()
 
 # --- SEARCH DEPENDENCIES ---
 
-# Search LibErrorInterceptor
+# External dependencies
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/external)
 
-if (WIN32)
-    set(LIBERRORINTERCEPTOR_INCLUDE "C:\\LibErrorInterceptor\\$ENV{name}\\include")
-    set(LIBERRORINTERCEPTOR_LIB "C:\\LibErrorInterceptor\\$ENV{name}\\lib\\ei_static.lib")
-endif ()
+# Location where external projects will be downloaded
+set (DOWNLOAD_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/downloads"
+    CACHE PATH "Location where external projects will be downloaded.")
+mark_as_advanced(DOWNLOAD_LOCATION)
 
-# Search LibUnknownEchoCryptoModule
+# LibErrorInterceptor
+include(libei)
 
-if (WIN32)
-    set(LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE "C:\\LibUnknownEchoCryptoModule\\$ENV{name}\\include")
-    set(LIBUNKNOWNECHOCRYPTOMODULE_LIB "C:\\LibUnknownEchoCryptoModule\\$ENV{name}\\lib\\uecm_static.lib")
-endif ()
+# LibUnknownEchoUtilsModule
+include(libueum)
 
-# Search LibUnknownEchoUtilsModule
+include(openssl)
 
-if (WIN32)
-    set(LIBUNKNOWNECHOUTILSMODULE_INCLUDE "C:\\LibUnknownEchoUtilsModule\\$ENV{name}\\include")
-    set(LIBUNKNOWNECHOUTILSMODULE_LIB "C:\\LibUnknownEchoUtilsModule\\$ENV{name}\\lib\\ueum_static.lib")
-endif ()
+# ZLib
+include(zlib)
+
+# LibUnknownEchoCryptoModule
+include(libuecm)
 
 # Search pthread
-
 if (UNIX)
     find_package (Threads)
 endif ()
 
-# Search OpenSSL
-if (UNIX)
-    find_package(PkgConfig REQUIRED)
-    if (NOT OPENSSL_LOCAL_LINK)
-        include_directories(${OPENSSL_INCLUDE_DIR})
-        pkg_search_module(OPENSSL REQUIRED openssl)
-        find_package(OPENSSL REQUIRED)
-        message(STATUS "Using OpenSSL ${OPENSSL_VERSION}")
-    endif ()
-elseif (WIN32)
-    #set(OPENSSL_ROOT_DIR CACHE PATH "C:/OpenSSL-Win64")
-    set(OPENSSL_INCLUDE "C:\\OpenSSL-Win64\\include")
-    set(LIBSSL_LIB "C:\\OpenSSL-Win64\\lib\\libssl.lib")
-    set(LIBCRYPTO_LIB "C:\\OpenSSL-Win64\\lib\\libcrypto.lib")
+if (NOT ZLIB_SYSTEM)
+    list(APPEND LIBSECURESTORAGE_DEPENDENCIES zlib)
 endif ()
 
-# Search ZLib
-if (UNIX)
-    find_package(PkgConfig)
-    pkg_search_module(ZLIB REQUIRED zlib)
-    set(ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIRS})
-    set(ADD_LINK_DIRECTORY ${ADD_LINK_DIRECTORY} ${ZLIB_LIBRARY_DIRS})
-    set(ADD_CFLAGS ${ADD_CFLAGS} ${ZLIB_CFLAGS_OTHER})
-    # To meet DEPENDS zlib from other projects.
-    # If we hit this line, zlib is already built and installed to the system.
-    add_custom_target(zlib)
-elseif (WIN32)
-    set(ZLIB_INCLUDE "C:\\zlib\\$ENV{name}\\include")
-    set(ZLIB_LIB "C:\\zlib\\$ENV{name}\\lib\\zlibstatic.lib")
+if (NOT LIBEI_SYSTEM)
+    list(APPEND LIBSECURESTORAGE_DEPENDENCIES libei)
 endif ()
 
-# --- BUILD UNKNOWNECHOCRYPTOMODULE ---
+if (NOT LIBUEUM_SYSTEM)
+    list(APPEND LIBSECURESTORAGE_DEPENDENCIES libueum)
+endif ()
 
-# Options
+if (NOT LIBUECM_SYSTEM)
+    list(APPEND LIBSECURESTORAGE_DEPENDENCIES libuecm)
+endif ()
+
+if (NOT OPENSSL_SYSTEM)
+    list(APPEND LIBSECURESTORAGE_DEPENDENCIES openssl)
+endif ()
+
+set(LIBSECURESTORAGE_LIBRARIES
+    ${LIBERRORINTERCEPTOR_LIBRARIES}
+    ${LIBUNKNOWNECHOCRYPTOMODULE_LIBRARIES}
+    ${LIBUNKNOWNECHOUTILSMODULE_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+
+set(LIBSECURESTORAGE_INCLUDE_DIR
+    ${ZLIB_INCLUDE_DIR}
+    ${LIBERRORINTERCEPTOR_INCLUDE_DIR}
+    ${LIBUNKNOWNECHOUTILSMODULE_INCLUDE_DIR}
+    ${OPENSSL_INCLUDE_DIR}
+    ${LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE_DIR}
+)
+
+# --- BUILD SSTORAGE ---
+
 set(PROJECT_NAME_STATIC "${PROJECT_NAME}_static")
 set(PROJECT_NAME_SHARED "${PROJECT_NAME}_shared")
 
@@ -198,83 +240,48 @@ file(GLOB_RECURSE PROGRAM_TARGET_SRC_FILES "${SRC_PATH}/*.*")
 
 # Build shared library
 add_library(${PROJECT_NAME_SHARED} SHARED ${PROGRAM_TARGET_SRC_FILES})
+if (LIBSECURESTORAGE_DEPENDENCIES)
+    add_dependencies(${PROJECT_NAME_SHARED} ${LIBSECURESTORAGE_DEPENDENCIES})
+endif ()
 target_include_directories(${PROJECT_NAME_SHARED} PUBLIC "${SRC_PATH}")
+target_include_directories(${PROJECT_NAME_SHARED} PUBLIC ${LIBSECURESTORAGE_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME_SHARED} ${LIBSECURESTORAGE_LIBRARIES})
 set_target_properties(${PROJECT_NAME_SHARED} PROPERTIES OUTPUT_NAME sstorage)
-target_link_libraries(${PROJECT_NAME_SHARED} ${CMAKE_THREAD_LIBS_INIT})
-if (OPENSSL_LOCAL_LINK)
-    if (UNIX)
-        target_link_libraries(${PROJECT_NAME_SHARED} "${CMAKE_SOURCE_DIR}/lib/linux/libssl.so.1.1" -ldl)
-        target_link_libraries(${PROJECT_NAME_SHARED} "${CMAKE_SOURCE_DIR}/lib/linux/libcrypto.so.1.1" -ldl)
-    elseif (WIN32)
-        target_link_libraries(${PROJECT_NAME_SHARED} "${CMAKE_SOURCE_DIR}/lib/windows/libssl.lib")
-        target_link_libraries(${PROJECT_NAME_SHARED} "${CMAKE_SOURCE_DIR}/lib/windows/libcrypto.lib")
-    endif ()
-endif ()
-if (WIN32)
-    target_include_directories(${PROJECT_NAME_SHARED} PUBLIC "${LIBERRORINTERCEPTOR_INCLUDE}")
-    target_link_libraries(${PROJECT_NAME_SHARED} "${LIBERRORINTERCEPTOR_LIB}")
-    target_include_directories(${PROJECT_NAME_SHARED} PUBLIC "${LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE}")
-    target_link_libraries(${PROJECT_NAME_SHARED} "${LIBUNKNOWNECHOCRYPTOMODULE_LIB}")
-    target_include_directories(${PROJECT_NAME_SHARED} PUBLIC "${LIBUNKNOWNECHOUTILSMODULE_INCLUDE}")
-    target_link_libraries(${PROJECT_NAME_SHARED} "${LIBUNKNOWNECHOUTILSMODULE_LIB}")
-    target_link_libraries(${PROJECT_NAME_SHARED} "${ZLIB_LIB}")
-elseif (UNIX)
-    target_link_libraries(${PROJECT_NAME_SHARED} "-lei_static -luecm_static -lueum_static")
-endif ()
 
 # Build static library
 add_library(${PROJECT_NAME_STATIC} STATIC ${PROGRAM_TARGET_SRC_FILES})
+if (LIBSECURESTORAGE_DEPENDENCIES)
+    add_dependencies(${PROJECT_NAME_STATIC} ${LIBSECURESTORAGE_DEPENDENCIES})
+endif ()
 target_include_directories(${PROJECT_NAME_STATIC} PUBLIC "${SRC_PATH}")
+target_include_directories(${PROJECT_NAME_STATIC} PUBLIC ${LIBSECURESTORAGE_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME_STATIC} ${LIBSECURESTORAGE_LIBRARIES})
 set_target_properties(${PROJECT_NAME_STATIC} PROPERTIES OUTPUT_NAME sstorage_static)
-target_link_libraries(${PROJECT_NAME_STATIC} ${CMAKE_THREAD_LIBS_INIT})
-if (OPENSSL_LOCAL_LINK)
-    if (UNIX)
-        target_link_libraries(${PROJECT_NAME_STATIC} "${CMAKE_SOURCE_DIR}/lib/linux/libssl.so.1.1" -ldl)
-        target_link_libraries(${PROJECT_NAME_STATIC} "${CMAKE_SOURCE_DIR}/lib/linux/libcrypto.so.1.1" -ldl)
-    elseif (WIN32)
-        target_link_libraries(${PROJECT_NAME_STATIC} "${CMAKE_SOURCE_DIR}/lib/windows/libssl.lib")
-        target_link_libraries(${PROJECT_NAME_STATIC} "${CMAKE_SOURCE_DIR}/lib/windows/libcrypto.lib")
-    endif ()
-endif ()
-if (WIN32)
-    target_include_directories(${PROJECT_NAME_STATIC} PUBLIC "${LIBERRORINTERCEPTOR_INCLUDE}")
-    target_link_libraries(${PROJECT_NAME_STATIC} "${LIBERRORINTERCEPTOR_LIB}")
-    target_include_directories(${PROJECT_NAME_STATIC} PUBLIC "${LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE}")
-    target_link_libraries(${PROJECT_NAME_STATIC} "${LIBUNKNOWNECHOCRYPTOMODULE_LIB}")
-    target_include_directories(${PROJECT_NAME_STATIC} PUBLIC "${LIBUNKNOWNECHOUTILSMODULE_INCLUDE}")
-    target_link_libraries(${PROJECT_NAME_STATIC} "${LIBUNKNOWNECHOUTILSMODULE_LIB}")
-    target_link_libraries(${PROJECT_NAME_STATIC} "${ZLIB_LIB}")
-elseif (UNIX)
-    target_link_libraries(${PROJECT_NAME_STATIC} "-lei_static -luecm_static -lueum_static")
-endif ()
 
 
 # --- INSTALL ---
 
+# Copy includes
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/ DESTINATION ${CMAKE_INSTALL_PREFIX}/include FILES_MATCHING PATTERN "*.h")
+
+# Copy static library
+install (
+    TARGETS ${PROJECT_NAME_STATIC}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+)
+
 if (UNIX)
-    # Copy includes
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/ DESTINATION /usr/include FILES_MATCHING PATTERN "*.h")
-
-    # Copy static library
-    install (TARGETS ${PROJECT_NAME_STATIC} ARCHIVE DESTINATION "/usr/lib")
-
-    # Copy shared library
-    install (TARGETS ${PROJECT_NAME_SHARED} LIBRARY DESTINATION "/usr/lib")
-elseif (WIN32)
-    # Copy includes
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/ DESTINATION ${CMAKE_INSTALL_PREFIX}/include FILES_MATCHING PATTERN "*.h")
-
-    # Copy static library
     install (
-        TARGETS ${PROJECT_NAME_STATIC}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+        TARGETS ${PROJECT_NAME_SHARED}
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
     )
-
-    #install (
-    #    TARGETS ${PROJECT_NAME_SHARED}
-    #    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
-    #)
+elseif (WIN32)
+    install (
+        TARGETS ${PROJECT_NAME_SHARED}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+    )
 endif ()
 
 # Build examples
@@ -283,27 +290,14 @@ foreach (filePath ${files} )
     get_filename_component(executableName ${filePath} NAME_WE)
     message(STATUS "Build Program : ${executableName}")
     add_executable(${executableName} ${filePath})
+    if (LIBSECURESTORAGE_DEPENDENCIES)
+        add_dependencies(${executableName} ${LIBSECURESTORAGE_DEPENDENCIES})
+    endif ()
     target_link_libraries(${executableName} ${PROJECT_NAME_STATIC})
-    if (WIN32)
-        target_include_directories(${executableName} PUBLIC "${LIBERRORINTERCEPTOR_INCLUDE}")
-        target_link_libraries(${executableName} "${LIBERRORINTERCEPTOR_LIB}")
-        target_include_directories(${executableName} PUBLIC "${LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE}")
-        target_link_libraries(${executableName} "${LIBUNKNOWNECHOCRYPTOMODULE_LIB}")
-        target_include_directories(${executableName} PUBLIC "${LIBUNKNOWNECHOUTILSMODULE_INCLUDE}")
-        target_link_libraries(${executableName} "${LIBUNKNOWNECHOUTILSMODULE_LIB}")
-    elseif (UNIX)
-        target_link_libraries(${executableName} "-lei_static -luecm_static -lueum_static")
+    target_include_directories(${executableName} PUBLIC ${LIBSECURESTORAGE_INCLUDE_DIR})
+    target_link_libraries(${executableName} ${LIBSECURESTORAGE_LIBRARIES})
+    if (UNIX)
+        target_link_libraries(${executableName} "-ldl")
     endif ()
-    if (OPENSSL_LOCAL_LINK)
-        if (UNIX)
-            target_link_libraries(${executableName} "${CMAKE_SOURCE_DIR}/lib/linux/libssl.so.1.1" -ldl)
-            target_link_libraries(${executableName} "${CMAKE_SOURCE_DIR}/lib/linux/libcrypto.so.1.1" -ldl)
-        elseif (WIN32)
-            target_link_libraries(${executableName} "${CMAKE_SOURCE_DIR}/lib/windows/libssl.lib")
-            target_link_libraries(${executableName} "${CMAKE_SOURCE_DIR}/lib/windows/libcrypto.lib")
-        endif ()
-    endif ()
-    target_include_directories(${executableName} PUBLIC "${ZLIB_INCLUDE_DIRS}")
-    target_link_libraries(${executableName} "${ZLIB_LIBRARIES}")
     set_target_properties(${executableName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_PATH})
 endforeach ()
