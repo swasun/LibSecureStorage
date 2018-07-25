@@ -19,8 +19,8 @@
 
 if (LIBUECM_SYSTEM)
     if (WIN32)
-        set(LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE_DIR "C:\\LibUnknownEchoUtilsModule\\$ENV{name}\\include")
-        set(LIBUNKNOWNECHOCRYPTOMODULE_LIBRARIES "C:\\LibUnknownEchoUtilsModule\\$ENV{name}\\lib\\uecm_static.lib")
+        set(LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE_DIR "C:\\LibUnknownEchoCryptoModule\\$ENV{name}\\include")
+        set(LIBUNKNOWNECHOCRYPTOMODULE_LIBRARIES "C:\\LibUnknownEchoCryptoModule\\$ENV{name}\\lib\\uecm_static.lib")
     elseif (UNIX)
         find_library(LIBUNKNOWNECHOCRYPTOMODULE_LIBRARIES
             NAMES uecm_static libuecm_static uecm libuecm
@@ -30,7 +30,7 @@ if (LIBUECM_SYSTEM)
 else (LIBUECM_SYSTEM)
     include (ExternalProject)
 
-    set(LIBUECM_URL https://github.com/swasun/LibUnknownEchoUtilsModule.git)
+    set(LIBUECM_URL https://github.com/swasun/LibUnknownEchoCryptoModule.git)
     set(LIBUNKNOWNECHOCRYPTOMODULE_INCLUDE_DIR ${LIBUECM_INSTALL}/external/libuecm_archive)
     set(LIBUECM_BUILD ${ROOT_BUILD_DIR}/libuecm/src/libuecm)
 
