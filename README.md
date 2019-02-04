@@ -50,8 +50,8 @@ sstorage_close(storage);
 ## Dependencies
 
 * [LibErrorInterceptor](https://github.com/swasun/LibErrorInterceptor), a lightweight and cross-plateform library to handle stacktrace and logging in C99. Last version.
-* [LibUnknownEchoUtilsModule](https://github.com/swasun/LibUnknownEchoUtilsModule) Crypto module of [LibUnknownEcho](https://github.com/swasun/LibUnknownEcho). Last version.
-* [LibUnknownEchoCryptoModule](https://github.com/swasun/LibUnknownEchoCryptoModule) Utils module of [LibUnknownEcho](https://github.com/swasun/LibUnknownEcho). Last version.
+* [LibUnknownEchoUtilsModule](https://github.com/swasun/LibUnknownEchoUtilsModule) Utils module of [LibUnknownEcho](https://github.com/swasun/LibUnknownEcho). Last version.
+* [LibUnknownEchoCryptoModule](https://github.com/swasun/LibUnknownEchoCryptoModule) Crypto module of [LibUnknownEcho](https://github.com/swasun/LibUnknownEcho). Last version.
 * [Libssl](https://github.com/openssl/openssl) Provides the client and server-side implementations for SSLv3 and TLS. Version 1.1
 * [Libcrypto](https://github.com/openssl/openssl) Provides general cryptographic and X.509 support needed by SSL/TLS but
     not logically part of it. Version 1.1.
